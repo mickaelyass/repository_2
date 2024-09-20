@@ -1,0 +1,7 @@
+# Ignorer tous les fichiers temporaires
+*.log
+*.tmp
+
+# Ignorer les dossiers spécifiques
+/node_modules
+/frontend/node_modules
