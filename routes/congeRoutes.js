@@ -261,23 +261,23 @@ router.put('/demande-conges/:id/decision-chef-service', async (req, res) => {
     await demande.save();
     
 
-     const dossier = await Dossier.findOne({
+    /*  const dossier = await Dossier.findOne({
     where: { matricule: matricule },
     include: [{
       model: InfoIdent,
       attributes: ['email'] // Récupérer l'email de l'agent
     }]
-  });
-
+  }); */
+/* 
   if (!dossier) {
     return res.status(404).json({ error: 'Dossier non trouvé' });
-  }
+  }*/
 
-  const agentEmail = dossier.InfoIdent.email;
+  /* const agentEmail = dossier.InfoIdent.email;
     const notification = {
       message: `Nouveau demande de congé créé pour l'employé : ${matricule}`,
       user_id: matricule,
-    };
+    }; 
 
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification); 
@@ -292,11 +292,7 @@ router.put('/demande-conges/:id/decision-chef-service', async (req, res) => {
   };
 
   const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé: ' + info.response);
-
-
-
-  
+    console.log('Email envoyé: ' + info.response); */
 
     res.status(200).json(demande);
   } catch (error) {

@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const Utilisateur = require('../models/utilisateur'); // Assurez-vous que le chemin est correct
-const { hashPassword, comparePassword, generateToken,authenticate } = require('../utils/auth'); // Importez vos fonctions utilitaires
+const { hashPassword, comparePassword,verifyToken, generateToken,authenticate } = require('../utils/auth'); // Importez vos fonctions utilitaires
 const { getIo } = require('../utils/socket');
 const Notification = require('../models/notification');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
+const SECRET_KEY = 'DAMSO';
 
 
 // Lire tous les utilisateurs
@@ -109,5 +114,89 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+
+// Request Password Reset
+// Assuming Sequelize models are defined
+// Request Password Reset
+router.post('/users/request-reset', async (req, res) => {
+  const { email, matricule } = req.body;
+
+  try {
+    const user = await Utilisateur.findOne({ where: { matricule } });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable avec cet e-mail et matricule' });
+    }
+
+    // Generate reset token
+    const resetToken = jwt.sign({ id: user.id_user, matricule },  SECRET_KEY , { expiresIn: '1h' });
+
+    // Configure nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: 'yassegoungbeseton@gmail.com', // Votre email
+        pass: 'hher oiai suyf rqni', // Mot de passe d'application
+      },
+    });
+
+    // Create reset link
+    const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
+
+    // Send email
+    await transporter.sendMail({
+      to: email,
+      from: 'yourapp@domain.com', 
+      subject: 'Demande de réinitialisation de mot de passe',
+      html: `
+        <p>Vous avez demandé une réinitialisation de mot de passe.</p>
+        <p>Cliquez sur ce <a href="${resetLink}">lien</a> pour créer un nouveau mot de passe.</p>
+        <p>Ce lien expire dans une heure.</p>
+      `,
+    });
+
+    res.status(200).json({ message: 'E-mail de réinitialisation envoyé avec succès' });
+  } catch (err) {
+    console.error('Erreur lors de l\'envoi de l\'email de réinitialisation', err);
+    res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+});
+
+// Reset Password
+router.post('/users/reset-password/:token', async (req, res) => {
+  const { password } = req.body;
+  const resetToken = req.params.token;
+   
+ 
+  try {  
+    if (!resetToken) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+    console.log('Reset Token:', resetToken);
+    const decoded = verifyToken(resetToken); // Vérifier le token
+    console.log('Decoded:', decoded);
+
+    const matricule = decoded.matricule; // Récupérer le matricule décodé
+
+    const user = await Utilisateur.findOne({ where: { matricule } }); // Trouver l'utilisateur par ID
+   console.log(user);
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+
+    // Hacher le nouveau mot de passe
+    const hashedPassword = await hashPassword(password);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Mot de passe réinitialisé avec succès' });
+  } catch (err) {
+    console.error('Erreur lors de la réinitialisation du mot de passe', err);
+    if (err instanceof jwt.JsonWebTokenError) {
+      return res.status(400).json({ error: 'Token invalide ou mal formé' });
+    }
+    return res.status(400).json({ error: 'Token invalide ou expiré' });
+  }
+});
 
 module.exports = router;

@@ -26,7 +26,7 @@ const verifyToken = (token) => {
 const authenticate = async (req, res, next) => {
   const token = req.header('Authorization').replace('Bearer ', '');
   try {
-    const decoded = jwt.verify(token, 'cr7');
+    const decoded = jwt.verify(token, SECRET_KEY);
     const user = await Utilisateur.findByPk(decoded.id);
 
     if (!user) {
