@@ -3,6 +3,11 @@ const sequelize = require('../db');
 const Utilisateur = require('./utilisateur'); // Assurez-vous que le chemin est correct
 
 const UserProfile = sequelize.define('UserProfile', {
+  id_user_profile: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   matricule: {
     type: DataTypes.STRING,
     unique: true,
@@ -17,7 +22,6 @@ const UserProfile = sequelize.define('UserProfile', {
 });
 
 // Définir la relation : Un UserProfile appartient à un Utilisateur
-UserProfile.belongsTo(Utilisateur, { foreignKey: 'matricule', targetKey: 'matricule' });
-Utilisateur.hasOne(UserProfile, { foreignKey: 'matricule', sourceKey: 'matricule' });
+
 
 module.exports = UserProfile;

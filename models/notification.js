@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 
 const Notification = sequelize.define('Notification', {
-  id: {
+  id_notif: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
@@ -11,9 +11,10 @@ const Notification = sequelize.define('Notification', {
     type: DataTypes.TEXT,
     allowNull: false
   },
-  user_id: {
-    type: DataTypes.STRING,
-    allowNull: false
+  id_user: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+
   },
   is_read: {
     type: DataTypes.BOOLEAN,

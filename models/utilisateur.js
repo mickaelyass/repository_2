@@ -8,15 +8,16 @@ const Utilisateur = sequelize.define('Utilisateur', {
     autoIncrement: true
   },
   matricule: {
-    type: DataTypes.STRING(50),
-    allowNull: false
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
   },
   password: {
-    type: DataTypes.STRING(200),
+    type: DataTypes.STRING,
     allowNull: false
   },
   role: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.STRING,
     allowNull: false
   }
 }, {

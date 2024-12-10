@@ -1,19 +1,27 @@
 // src/routes/demandeConges.js
 const express = require('express');
 const router = express.Router();
-const Dossier = require('../models/dossier');
-const InfoPro = require('../models/infoPro');
-const InfoIdent=require('../models/infoIdent');
-const DemandeConges = require('../models/demandeConge');
-const Piece_jointe  = require('../models/piece_jointe');
 const { Op } = require('sequelize');
 const multer = require('multer');
 const path = require('path');
 const fs=require('fs');
 const { getIo } = require('../utils/socket');
-const Notification = require('../models/notification');
-const DetailsMutation = require('../models/detailsMutation');
 const nodemailer = require('nodemailer');
+const { InfoIdent,
+  Dossier,
+  Utilisateur,
+  UserProfile,
+  Diplome,
+  PosteAnterieur,
+  Details,
+  Sanction,
+  Distinction,
+  PieceJointe,
+  Notifications,
+  InfoComplementaire,
+  InfoPro,
+  InfoBank,
+  DemandeConges,}=require('../models/association');
 
 // Configuration de nodemailer
 const transporter = nodemailer.createTransport({
@@ -52,6 +60,7 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
  console.log(req.body);
  console.log(req.files);
   try {
+    console.log(req.body);
     // Traiter les pièces jointes
     const pieceJointeData = {};
     if (req.files) {
@@ -65,7 +74,7 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
       }
 
       // Créer une nouvelle pièce jointe
-      const newPieceJointe = await Piece_jointe.create(pieceJointeData);
+      const newPieceJointe = await PieceJointe.create(pieceJointeData);
 
         
 
@@ -79,9 +88,14 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
       piece_jointe: newPieceJointe.id_piece
     });
 
+    const notification = await Notifications.create({
+      message: `Nouveau demande de congé faire par l'agent : ${matricule}`,
+      user_id: matricule,
+    });
+    console.log(notification);
 
      // Récupérer le dossier de l'agent par matricule
-  const dossier = await Dossier.findOne({
+    const dossierAgent = await Dossier.findOne({
     where: { matricule: matricule },
     include: [{
       model: InfoIdent,
@@ -89,30 +103,41 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
     }]
   });
 
-  if (!dossier) {
+  if (!dossierAgent) {
     return res.status(404).json({ error: 'Dossier non trouvé' });
   }
+     const dossierChef = await Dossier.findAll({
+      
+      include: [{
+        model: InfoPro,
+        where:{poste_actuel_service:dossierAgent.InfoPro.poste_actuel_service}
+        
+      },{
+        model:Utilisateur,
+        where: {role:chef_service}
+      }]
+    });
 
-  const agentEmail = dossier.InfoIdent.email;
-    const notification = {
-      message: `Nouveau demande de congé créé pour l'employé : ${matricule}`,
-      user_id: matricule,
-    };
+  const chefEmail=dossierChef.InfoIdent.email
 
+  const agentEmail = dossierAgent.InfoIdent.email;
+
+   
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification); 
-
+ 
+    
   // Envoyer un email au chef de service
   const mailOptions = {
     from: agentEmail,
-    to: 'setonmickaelyassegoungbe@gmail.com', // L'email du chef de service
+    to: chefEmail ? 'setonmickaelyassegoungbe@gmail.com', // L'email du chef de service
     subject: 'Nouvelle demande de congé',
     text: `Une nouvelle demande de congé a été créée par un subordonné. 
            Matricule: ${matricule}, Date de début: ${date_debut}, Année de jouissance: ${annee_jouissance}.`
   };
 
   const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé: ' + info.response);
+    console.log('Email envoyé: ' + info.response); 
 
     res.status(201).json(newDemande);
     }
@@ -127,7 +152,9 @@ router.get('/demande-conges', async (req, res) => {
   try {
     const demandes = await DemandeConges.findAll({
       include: {
-        model: Piece_jointe,
+        model: PieceJointe,
+        as: 'piecesJointes',
+    
       }
     });
 
@@ -144,31 +171,57 @@ router.get('/demandes/service/:service', async (req, res) => {
   try {
     // Récupérer les matricules des agents dans le service donné
     const dossiers = await Dossier.findAll({
-      include: [{
-        model: InfoPro,
-        attributes: [
-          'statut', 'corps', 'categorie', 'branche_du_personnel', 'fonctions', 'ref_nomination',
-          'dat_prise_fonction', 'responsabilite_partiuliere', 'grade_paye', 'indice_paye', 
-          'dat_first_prise_de_service', 'dat_de_depart_retraite', 'dat_de_prise_service_dans_departement',
-          'ref_acte_de_prise_service_poste_actuel', 'poste_actuel_service', 'type_structure', 
-          'zone_sanitaire', 'poste_specifique', 'etat_depart', 'poste_anterieurs', 'autres_diplome'
-        ],
+      include: [
+        {
+          model:Utilisateur,
+        },
+        {
+          model: InfoIdent,
+        },
+        {
+          model: InfoPro,
+         
+          include: [
+            {
+              model: PosteAnterieur,
+          
+            },
+            {
+              model: Diplome,
 
-        include: [
-          {
-            model: DetailsMutation,
-            attributes: [
-              'id_detail','matricule', 'etat_depart', 'poste_actuel', 'service_actuel', 'nouveau_poste',
-              'nouveau_service', 'date_prise_fonction', 'date_changement', 'motif_changement',
-              'type_changement', 'besoins_formation'
-            ]
+            },
+            {
+              model: Details,
+              
+            },
+          ],
+          where: {
+            poste_actuel_service: service,
           }
-        ],
-        where: {
-          poste_actuel_service: service
+        },
+        {
+          model: InfoBank,
+      
+        },
+        {
+          model: InfoComplementaire,
+        
+          include: [
+            {
+              model: Sanction,
+            
+            },
+            {
+              model: Distinction,
+             
+            },
+          ],
         }
-      }]
+       
+      ],
+      
     });
+
    console.log("dossier",dossiers);
 
     const matricules = dossiers.map(dossier => dossier.matricule);
@@ -183,7 +236,9 @@ router.get('/demandes/service/:service', async (req, res) => {
         
       },
       include: [{
-        model: Piece_jointe // Pour inclure les pièces jointes
+        model: PieceJointe,
+        as: 'piecesJointes',
+         // Pour inclure les pièces jointes
       }]
     });
 
@@ -203,7 +258,11 @@ router.get('/demande-conges/:id_cong', async (req, res) => {
   try {
     // Recherche de la demande de congé par son ID, incluant les pièces jointes
     const demande = await DemandeConges.findByPk(id_cong, {
-      include: [Piece_jointe]
+      include: {
+        model: PieceJointe,
+        as: 'piecesJointes',
+    
+      }
     });
 
     if (!demande) {
@@ -226,7 +285,11 @@ router.get('/demande-conges/:id_cong', async (req, res) => {
    try {
      const demande = await DemandeConges.findOne({
        where: { matricule },
-       include: Piece_jointe
+       include: {
+        model: PieceJointe,
+        as: 'piecesJointes',
+    
+      }
      });
 
      if (!demande) {
@@ -261,23 +324,24 @@ router.put('/demande-conges/:id/decision-chef-service', async (req, res) => {
     await demande.save();
     
 
-    /*  const dossier = await Dossier.findOne({
-    where: { matricule: matricule },
+      const dossier = await Dossier.findOne({
+    where: { matricule: demande.matricule },
     include: [{
       model: InfoIdent,
       attributes: ['email'] // Récupérer l'email de l'agent
     }]
-  }); */
-/* 
+  }); 
+ 
   if (!dossier) {
     return res.status(404).json({ error: 'Dossier non trouvé' });
-  }*/
+  }
 
-  /* const agentEmail = dossier.InfoIdent.email;
-    const notification = {
-      message: `Nouveau demande de congé créé pour l'employé : ${matricule}`,
-      user_id: matricule,
-    }; 
+   const agentEmail = dossier.InfoIdent.email;
+
+   const notification = await Notifications.create({
+    message: `La demande de congé de l'agent ${demande.matricule} est ${demande.decision_chef_service}`,
+    user_id: demande.matricule,
+  }); 
 
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification); 
@@ -292,7 +356,7 @@ router.put('/demande-conges/:id/decision-chef-service', async (req, res) => {
   };
 
   const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé: ' + info.response); */
+    console.log('Email envoyé: ' + info.response); 
 
     res.status(200).json(demande);
   } catch (error) {
@@ -322,10 +386,10 @@ router.put('/demande-conges/:id/decision-directrice', async (req, res) => {
     } 
     
     await demande.save();
-    const notification = await Notification.create({
+     const notification = await Notifications.create({
       message: `La demande de congé de l'agent ${demande.matricule} est ${demande.decision_directrice}`,
       user_id: demande.matricule,
-    });
+    }); 
 
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification);
@@ -345,7 +409,11 @@ router.get('/demande-conges/status/:status', async (req, res) => {
     const demandes = await DemandeConges.findAll({
       where: { decision_chef_service:status
 },
-      include: Piece_jointe
+        include: {
+          model: PieceJointe,
+          as: 'piecesJointes',
+
+         }
     });
 
     res.status(200).json(demandes);

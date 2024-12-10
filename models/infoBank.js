@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
+const Dossier = require('./dossier');
 
 const InfoBank = sequelize.define('InfoBank', {
   id_infob: {
@@ -7,22 +8,16 @@ const InfoBank = sequelize.define('InfoBank', {
     primaryKey: true,
     autoIncrement: true
   },
-  rib: {
-    type: DataTypes.STRING(50)
-  },
-  mtn: {
-    type: DataTypes.STRING(50)
-  },
-  celtics: {
-    type: DataTypes.STRING(50)
-  },
-  libercom: {
-    type: DataTypes.STRING(50)
-  }
- 
+  rib: { type: DataTypes.STRING },
+  mtn: { type: DataTypes.STRING },
+  celtics: { type: DataTypes.STRING },
+  moov: { type: DataTypes.STRING }
 }, {
   tableName: 'info_bank',
   timestamps: false
 });
+
+// Associations
+
 
 module.exports = InfoBank;

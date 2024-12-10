@@ -2,7 +2,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 const Utilisateur = require('./utilisateur');
-const Piece_jointe = require('./piece_jointe');
+const PieceJointe = require('./piece_jointe');
 
 const DemandeConges = sequelize.define('DemandeConges', {
   id_cong: {
@@ -52,7 +52,7 @@ const DemandeConges = sequelize.define('DemandeConges', {
   , piece_jointe: {
     type: DataTypes.INTEGER,
     references: {
-      model: Piece_jointe,
+      model: PieceJointe,
       key: 'id_piece'
     }
   }
@@ -61,9 +61,6 @@ const DemandeConges = sequelize.define('DemandeConges', {
   timestamps: false
 });
 
-Utilisateur.hasMany(DemandeConges, { foreignKey: 'matricule' });
-DemandeConges.belongsTo(Utilisateur, { foreignKey: 'matricule' });
 
-DemandeConges.belongsTo(Piece_jointe, { foreignKey: 'piece_jointe', targetKey: 'id_piece' });
 
 module.exports = DemandeConges;

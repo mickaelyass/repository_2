@@ -2,7 +2,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 
-const Piece_jointe = sequelize.define('Piece_jointe', {
+const PieceJointe = sequelize.define('Piece_jointe', {
   id_piece: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -13,10 +13,12 @@ const Piece_jointe = sequelize.define('Piece_jointe', {
   },
   url_derniere_autorisation_conges: {
     type: DataTypes.TEXT
-  }
-}, {
+  },
+  demande_conge: { // Clé étrangère pour relier à DemandeConges
+    type: DataTypes.INTEGER
+}}, {
   tableName: 'piece_jointe',
   timestamps: false
 });
 
-module.exports = Piece_jointe;
+module.exports = PieceJointe;

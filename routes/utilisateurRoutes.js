@@ -1,14 +1,52 @@
 const express = require('express');
 const router = express.Router();
-const Utilisateur = require('../models/utilisateur'); // Assurez-vous que le chemin est correct
 const { hashPassword, comparePassword,verifyToken, generateToken,authenticate } = require('../utils/auth'); // Importez vos fonctions utilitaires
 const { getIo } = require('../utils/socket');
-const Notification = require('../models/notification');
+
+const { InfoIdent,
+  Dossier,
+  Utilisateur,
+  UserProfile,
+  Diplome,
+  PosteAnterieur,
+  Details,
+  Sanction,
+  Distinction,
+  PieceJointe,
+  Notifications,
+  InfoComplementaire,
+  InfoPro,
+  InfoBank,
+  DemandeConges}=require('../models/association');
+   
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const SECRET_KEY = 'DAMSO';
+
+
+// Enregistrement d'un utilisateur
+router.post('/users/register', async (req, res) => {
+  const { matricule, password, role } = req.body;
+  try {
+    // Vérification de l'unicité du matricule
+    const existingUser = await Utilisateur.findOne({ where: { matricule } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Le matricule est déjà attribué' });
+    }
+    const hashedPassword = await hashPassword(password);
+    console.log("Insertion des données dans la base...");
+    const user = await Utilisateur.create({ matricule, password: hashedPassword, role });
+    // Émettre une notification via Socket.io
+    //getIo().emit('receiveNotification', notification);
+
+    res.status(201).json(user);
+  } catch (err) {
+    console.error('Error creating user', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 
 // Lire tous les utilisateurs
@@ -22,27 +60,8 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// Enregistrement d'un utilisateur
-router.post('/users/register', async (req, res) => {
-  const { matricule, password, role } = req.body;
-  try {
-    const hashedPassword = await hashPassword(password);
-    const user = await Utilisateur.create({ matricule, password: hashedPassword, role });
 
-    const notification = {
-      message: `Nouveau agent enregistrer : ${matricule}`,
-      user_id: matricule,
-    };
 
-    // Émettre une notification via Socket.io
-    getIo().emit('receiveNotification', notification);
-
-    res.status(201).json(user);
-  } catch (err) {
-    console.error('Error creating user', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // Connexion d'un utilisateur
 router.post('/users/login', async (req, res) => {

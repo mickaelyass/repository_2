@@ -1,5 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
+const Distinction = require('./distinction');
+const Sanction = require('./sanction');
 
 const InfoComplementaire = sequelize.define('InfoComplementaire', {
   id_infoc: {
@@ -7,30 +9,17 @@ const InfoComplementaire = sequelize.define('InfoComplementaire', {
     primaryKey: true,
     autoIncrement: true
   },
-  observation_particuliere: {
-    type: DataTypes.TEXT
-  },
-  distinction: {
-    type: DataTypes.STRING(100)
-  },
-  ref_distinction: {
-    type: DataTypes.STRING(50)
-  },
-  detail_distinction: {
-    type: DataTypes.TEXT
-  },
-  situat_sante: {
-    type: DataTypes.STRING(100)
-  },
-  saction_punitive: {
-    type: DataTypes.STRING(100)
-  },
-  nature_sanction: {
-    type: DataTypes.STRING(100)
-  }
+  observation_particuliere: { type: DataTypes.TEXT },
+  situat_sante: { type: DataTypes.STRING },
+  sanction:{type:DataTypes.INTEGER,unique:true},
+  distinction:{type:DataTypes.INTEGER,unique:true}
+
 }, {
   tableName: 'info_complementaire',
   timestamps: false
 });
+
+// Associations
+
 
 module.exports = InfoComplementaire;
