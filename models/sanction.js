@@ -8,7 +8,7 @@ const Sanction = sequelize.define('Sanction', {
     primaryKey: true,
     autoIncrement: true
   },
-  saction_punitive: { type: DataTypes.STRING },
+  sanction_punitive: { type: DataTypes.STRING },
   nature_sanction: { type: DataTypes.STRING },
   infoc: {type: DataTypes.INTEGER}
 }, {

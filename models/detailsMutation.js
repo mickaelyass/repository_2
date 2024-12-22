@@ -8,7 +8,7 @@ const Details = sequelize.define('Details', {
     primaryKey: true,
     autoIncrement: true
   },
-  matricule: { type: DataTypes.INTEGER, allowNull: true},
+  matricule: { type: DataTypes.STRING},
   etat: { type: DataTypes.STRING },
   poste_actuel: { type: DataTypes.STRING },
   service_actuel: { type: DataTypes.STRING },

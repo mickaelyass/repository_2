@@ -28,9 +28,6 @@ const InfoPro = sequelize.define('InfoPro', {
   ref_nomination: { type: DataTypes.STRING },
   zone_sanitaire: { type: DataTypes.STRING },
   poste_specifique: { type: DataTypes.STRING },
-  detail: { type: DataTypes.INTEGER,allowNull:false,  unique: true }, 
-  diplome: { type: DataTypes.INTEGER,unique:true},
-  poste: { type: DataTypes.INTEGER,unique:true }
 },
   {   tableName: 'info_pro',
   timestamps: false  

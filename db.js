@@ -1,11 +1,18 @@
-const {Sequelize} = require('sequelize');
-const sequelize = new Sequelize('db_pgdp', 'mickaelyass', 'mickaelyass2001',
-    {
-  host: 'localhost',
-  dialect: 'postgres',
+require('dotenv').config(); // Charger les variables d'environnement
 
-  logging:false,
-   });
-module.exports=sequelize;
+const { Sequelize } = require('sequelize');
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: process.env.DB_DIALECT,
+    logging: false,
+  }
+);
+
+module.exports = sequelize;
 
 

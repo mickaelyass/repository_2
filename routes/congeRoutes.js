@@ -6,7 +6,10 @@ const multer = require('multer');
 const path = require('path');
 const fs=require('fs');
 const { getIo } = require('../utils/socket');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+const resend = new Resend('re_cQUpPLTK_4bXFnAcZsofhS3ns1ofhXCJg');
+
 const { InfoIdent,
   Dossier,
   Utilisateur,
@@ -23,15 +26,6 @@ const { InfoIdent,
   InfoBank,
   DemandeConges,}=require('../models/association');
 
-// Configuration de nodemailer
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // Utiliser le service que vous souhaitez
-  auth: {
-    user: 'yassegoungbeseton@gmail.com', // Votre email
-    pass: 'hher oiai suyf rqni' // Votre mot de passe ou application-specific password
-  },
-  connectionTimeout: 10000 // Ajustez le délai d'attente à 10 secondes
-});
 
 // Configuration du stockage des fichiers
 const storage = multer.diskStorage({
@@ -81,44 +75,73 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
  // Créer la demande de congés
     const { matricule, date_debut, annee_jouissance, raison } = req.body;
     const newDemande = await DemandeConges.create({
-      matricule:matricule,
+      matricule:matricule  ,                                       
       date_debut:date_debut,
       annee_jouissance:annee_jouissance,
       raison:raison,
       piece_jointe: newPieceJointe.id_piece
     });
 
-    const notification = await Notifications.create({
-      message: `Nouveau demande de congé faire par l'agent : ${matricule}`,
-      user_id: matricule,
-    });
-    console.log(notification);
 
      // Récupérer le dossier de l'agent par matricule
     const dossierAgent = await Dossier.findOne({
-    where: { matricule: matricule },
+   
     include: [{
       model: InfoIdent,
-      attributes: ['email'] // Récupérer l'email de l'agent
-    }]
+    },
+    {
+      model: InfoPro,
+     
+    }
+    ,
+    {
+      model: Utilisateur,
+     // Assurez-vous que cette colonne existe
+    },] ,
+    where: { matricule: matricule },
   });
 
   if (!dossierAgent) {
     return res.status(404).json({ error: 'Dossier non trouvé' });
   }
+console.log(dossierAgent);
+
+const posteActuelService = dossierAgent.InfoPro?.poste_actuel_service;
+console.log(posteActuelService);
+  
+      if (!posteActuelService) {
+        return res.status(400).json({ error: 'Le poste actuel du service est introuvable.' });
+      }
+
+  
      const dossierChef = await Dossier.findAll({
       
-      include: [{
+      include: [   {
         model: InfoPro,
-        where:{poste_actuel_service:dossierAgent.InfoPro.poste_actuel_service}
-        
-      },{
-        model:Utilisateur,
-        where: {role:chef_service}
-      }]
+        attributes: ['poste_actuel_service'], // Fetch only the `poste_actuel_service` attribute
+        where: { poste_actuel_service: posteActuelService },
+        required: true,
+      },
+      {
+        model: InfoIdent,
+      },
+      {
+        model: Utilisateur,
+       // Fetch only the `id_user` and `role` attributes
+        where: { role: 'chef_service' },
+        required: true,
+      },]
     });
+    console.log(dossierChef);
 
-  const chefEmail=dossierChef.InfoIdent.email
+    const notification = await Notifications.create({
+      message: `Nouveau demande de congé faire par l'agent : ${matricule}`,
+      id_user: dossierAgent.Utilisateur.id_user,
+    });
+    
+    console.log('notification',notification);
+
+  const chefEmail='yassegoungbeseton@gmail.com';
 
   const agentEmail = dossierAgent.InfoIdent.email;
 
@@ -127,17 +150,15 @@ router.post('/demande-conges/create', upload.fields([{ name: 'certificat', maxCo
     getIo().emit('receiveNotification', notification); 
  
     
-  // Envoyer un email au chef de service
-  const mailOptions = {
-    from: agentEmail,
-    to: chefEmail ? 'setonmickaelyassegoungbe@gmail.com', // L'email du chef de service
-    subject: 'Nouvelle demande de congé',
-    text: `Une nouvelle demande de congé a été créée par un subordonné. 
+    resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: chefEmail,
+      subject: 'Nouvelle demande de congé',
+      text: `Une nouvelle demande de congé a été créée par un subordonné. 
            Matricule: ${matricule}, Date de début: ${date_debut}, Année de jouissance: ${annee_jouissance}.`
-  };
-
-  const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé: ' + info.response); 
+    });
+  // Envoyer un email au chef de service
+  console.log("mail envoyé");
 
     res.status(201).json(newDemande);
     }
@@ -222,9 +243,10 @@ router.get('/demandes/service/:service', async (req, res) => {
       
     });
 
-   console.log("dossier",dossiers);
+   
 
     const matricules = dossiers.map(dossier => dossier.matricule);
+    console.log("dossier",matricules);
    
     // Récupérer les demandes de congés pour ces matricules
     const demandes = await DemandeConges.findAll({
@@ -240,7 +262,7 @@ router.get('/demandes/service/:service', async (req, res) => {
         as: 'piecesJointes',
          // Pour inclure les pièces jointes
       }]
-    });
+    }); 
 
     console.log(demandes);
     res.status(200).json(demandes);
@@ -322,41 +344,43 @@ router.put('/demande-conges/:id/decision-chef-service', async (req, res) => {
     }
     demande.decision_chef_service = decision_chef_service;
     await demande.save();
-    
+    const mat= demande.matricule
 
       const dossier = await Dossier.findOne({
-    where: { matricule: demande.matricule },
+    where: { matricule: mat },
     include: [{
       model: InfoIdent,
       attributes: ['email'] // Récupérer l'email de l'agent
+    },
+    {
+      model: Utilisateur,
+      attributes: ['id_user'] // Récupérer l'email de l'agent
     }]
   }); 
- 
+
   if (!dossier) {
     return res.status(404).json({ error: 'Dossier non trouvé' });
   }
-
+console.log("mon dossier",dossier)
    const agentEmail = dossier.InfoIdent.email;
+  const user=dossier.Utilisateur.id_user
+
 
    const notification = await Notifications.create({
     message: `La demande de congé de l'agent ${demande.matricule} est ${demande.decision_chef_service}`,
-    user_id: demande.matricule,
+    id_user: user,
   }); 
 
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification); 
 
   // Envoyer un email au chef de service
-  const mailOptions = {
-    from: agentEmail,
-    to: 'setonmickaelyassegoungbe@gmail.com', // L'email du chef de service
-    subject: 'Nouvelle demande de congé',
-    text: `Une nouvelle demande de congé a été créée par un subordonné. 
-           Matricule: ${matricule}, Date de début: ${date_debut}, Année de jouissance: ${annee_jouissance}.`
-  };
-
-  const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé: ' + info.response); 
+  resend.emails.send({
+    from: 'onboarding@resend.dev',
+    to: agentEmail,
+    subject: 'Décision chef service pour la demande  de congé',
+    text: `La demande de congé de l'agent ${demande.matricule} est ${demande.decision_chef_service}`
+  });
 
     res.status(200).json(demande);
   } catch (error) {
@@ -386,13 +410,43 @@ router.put('/demande-conges/:id/decision-directrice', async (req, res) => {
     } 
     
     await demande.save();
+    const mat=demande.matricule;
+
+    const dossier = await Dossier.findOne({
+      where: { matricule: mat },
+      include: [{
+        model: InfoIdent,
+        attributes: ['email'] // Récupérer l'email de l'agent
+      },
+      {
+        model: Utilisateur,
+        attributes: ['id_user'] // Récupérer l'email de l'agent
+      }]
+    }); 
+  
+    if (!dossier) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+  console.log("mon dossier",dossier)
+
+     const agentEmail = dossier.InfoIdent.email;
+
+    const user=dossier.Utilisateur.id_user
+
      const notification = await Notifications.create({
-      message: `La demande de congé de l'agent ${demande.matricule} est ${demande.decision_directrice}`,
-      user_id: demande.matricule,
+      message: `La demande de congé de l'agent ${mat} est ${demande.decision_directrice}`,
+      id_user: user,
     }); 
 
     // Émettre une notification via Socket.io
     getIo().emit('receiveNotification', notification);
+    resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: agentEmail,
+      subject: 'Décision chef service pour la demande  de congé',
+      text: `La demande de congé de l'agent ${mat} est ${demande.decision_directrice}`
+    });
+  
 
     res.status(200).json(demande);
   } catch (error) {

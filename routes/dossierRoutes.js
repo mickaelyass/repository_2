@@ -17,6 +17,7 @@ const { InfoIdent,
   InfoPro,
   InfoBank,
   DemandeConges}=require('../models/association');
+
 const { Op ,Sequelize} = require('sequelize');
 const { getIo } = require('../utils/socket');
 const sequelize=require('../db.js');
@@ -51,7 +52,7 @@ const sequelize=require('../db.js');
       console.log(createdInfoIdent)
   
       // Créer un Details (par défaut ou avec les données fournies)
-      const detailsMutationData = detailsMutation || {
+      const detail = detailsMutation || {
         matricule: matricule,
         etat: 'Actif',
         poste_actuel: 'Neant',
@@ -66,19 +67,33 @@ const sequelize=require('../db.js');
       };
       
   
-      const detail = await Details.create(detailsMutationData, { transaction });
-    console.log(detail);
+     
       // Créer infoPro
       const createdInfoPro = await InfoPro.create(
         {
           ...infoPro,
-          detail: detail.id_detail || null,
-          poste: poste?.id_poste || null,
-          diplome: diplome?.id_diplome || null,
+    
         },
         { transaction }
       );
       console.log(createdInfoPro);
+
+     await Details.create({
+        matricule: detail.matricule,
+        etat: detail.etat,
+        poste_actuel: detail.poste_actuel,
+        service_actuel: detail.service_actuel,
+        nouveau_poste: detail.nouveau_poste,
+        nouveau_service: detail.nouveau_service,
+        date_prise_fonction: detail.date_prise_fonction,
+        date_changement: detail.date_changement,
+        motif_changement: detail.motif_changement,
+        type_changement: detail.type_changement,
+        besoins_formation: detail.besoins_formation,
+        infop: createdInfoPro.id_infop,
+      }, { transaction });
+
+      console.log(detail);
       // Créer un PosteAnterieur si fourni
       if (poste) {
         await PosteAnterieur.create(
@@ -99,6 +114,7 @@ const sequelize=require('../db.js');
           {
             nom_diplome: diplome.nom_diplome,
             date_obtention: diplome.date_obtention,
+            institution: diplome.institution,
             infop: createdInfoPro.id_infop,
           },
           { transaction }
@@ -251,6 +267,77 @@ router.get('/dossiers', async (req, res) => {
   }
 });
 
+// Route pour récupérer des dossiers filtrés par nom et/ou service
+router.get('/dossiers/search', async (req, res) => {
+  try {
+    const { nom, service } = req.query;  // Récupérer les paramètres de recherche de la requête
+
+    const conditions = {};
+
+    if (nom && typeof nom === "string" && nom.trim() !== "") {
+      conditions['$InfoIdent.nom$'] = { [Op.iLike]: `%${nom}%` };
+    }
+    
+    if (service && typeof service === "string" && service.trim() !== "") {
+      conditions['$InfoPro.service$'] = { [Op.iLike]: `%${service}%` };
+    }
+    
+
+
+    // Rechercher les dossiers avec les conditions définies
+    const dossiers = await Dossier.findAll({
+      where: conditions,  // On applique les conditions de recherche
+      include: [
+        {
+          model: Utilisateur,
+        },
+        {
+          model: InfoIdent,
+        },
+        {
+          model: InfoPro,
+          include: [
+            {
+              model: PosteAnterieur,
+            },
+            {
+              model: Diplome,
+            },
+            {
+              model: Details,
+            },
+          ],
+        },
+        {
+          model: InfoBank,
+        },
+        {
+          model: InfoComplementaire,
+          include: [
+            {
+              model: Sanction,
+            },
+            {
+              model: Distinction,
+            },
+          ],
+        },
+      ],
+    });
+
+    // Vérifier si des dossiers ont été trouvés
+    if (!dossiers || dossiers.length === 0) {
+      return res.status(404).json({ error: 'No dossiers found matching the search criteria' });
+    }
+
+    // Retourner les dossiers trouvés
+    res.status(200).json(dossiers);
+  } catch (err) {
+    console.error('Error searching dossiers', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/dossiers/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -307,7 +394,7 @@ router.get('/dossiers/:id', async (req, res) => {
     console.error('Error fetching dossier by id', err);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}); 
 
 router.get('/dossiers/user/:matricule', async (req, res) => {
   try {
@@ -368,78 +455,7 @@ router.get('/dossiers/user/:matricule', async (req, res) => {
 });
 
   
-// Route pour récupérer des dossiers filtrés par nom et/ou service
-router.get('/dossiers/search', async (req, res) => {
-  try {
-    // Récupérer les paramètres de recherche depuis la requête
-    const { nom, service } = req.query;
 
-    // Construire les conditions de filtre
-    const conditions = {};
-
-    // Si un nom est fourni, filtrer par nom
-    if (nom) {
-      conditions['$Utilisateur.nom$'] = { [Sequelize.Op.iLike]: `%${nom}%` }; // iLike pour une recherche insensible à la casse
-    }
-
-    // Si un service est fourni, filtrer par service
-    if (service) {
-      conditions['$InfoPro.service$'] = { [Sequelize.Op.iLike]: `%${service}%` }; // iLike pour une recherche insensible à la casse
-    }
-
-    // Chercher les dossiers avec les conditions de filtre
-    const dossiers = await Dossier.findAll({
-      where: conditions,
-      include: [
-        {
-          model: Utilisateur,
-        },
-        {
-          model: InfoIdent,
-        },
-        {
-          model: InfoPro,
-          include: [
-            {
-              model: PosteAnterieur,
-            },
-            {
-              model: Diplome,
-            },
-            {
-              model: Details,
-            },
-          ],
-        },
-        {
-          model: InfoBank,
-        },
-        {
-          model: InfoComplementaire,
-          include: [
-            {
-              model: Sanction,
-            },
-            {
-              model: Distinction,
-            },
-          ],
-        },
-      ],
-    });
-
-    // Vérifier si des dossiers ont été trouvés
-    if (!dossiers || dossiers.length === 0) {
-      return res.status(404).json({ error: 'No dossiers found matching the criteria' });
-    }
-
-    // Retourner la liste des dossiers trouvés
-    res.status(200).json(dossiers);
-  } catch (err) {
-    console.error('Error fetching dossiers by name or service', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // Route pour mettre à jour un dossier
 router.put('/dossiers/:id', async (req, res) => {
@@ -503,7 +519,6 @@ router.put('/dossiers/:id', async (req, res) => {
     const infoProToUpdate = await dossier.getInfoPro();
     const infoBankToUpdate = await dossier.getInfoBank();
     const infoComplementaireToUpdate = await dossier.getInfoComplementaire();
-    const detailMutationToUpdate =  infoProToUpdate.Details;
 
     // Mettre à jour infoIdent
     await infoIdentToUpdate.update(infoIdent, { transaction });
@@ -512,7 +527,7 @@ router.put('/dossiers/:id', async (req, res) => {
     const detail = detailsMutation && Object.keys(detailsMutation).length > 0
     ? detailsMutation
     : {
-        matricule: dossier.Utilisateur.id_detail,
+        matricule: dossier.matricule,
         etat: 'Actif',
         poste_actuel: 'Neant',
         service_actuel: 'Neant',
@@ -525,18 +540,31 @@ router.put('/dossiers/:id', async (req, res) => {
         besoins_formation: 'Neant',
       };
 
-    console.log("Dossier récupéré :", detail);
-    const detailMutationToUpdated=await Details.create(detail, { transaction });
-
+ 
+    
     await infoProToUpdate.update(
       {
         ...infoPro,
-        detail: detailMutationToUpdated.id_detail || null,
-        poste: poste?.id_poste || null,
-        diplome: diplome?.id_diplome || null,
+  
       },
       { transaction }
     );
+
+
+    await Details.create({
+      matricule: detail.matricule,
+      etat: detail.etat,
+      poste_actuel: detail.poste_actuel,
+      service_actuel: detail.service_actuel,
+      nouveau_poste: detail.nouveau_poste,
+      nouveau_service: detail.nouveau_service,
+      date_prise_fonction: detail.date_prise_fonction,
+      date_changement: detail.date_changement,
+      motif_changement: detail.motif_changement,
+      type_changement: detail.type_changement,
+      besoins_formation: detail.besoins_formation,
+      infop: infoProToUpdate.id_infop,
+    }, { transaction });
 
     // Mise à jour de PosteAnterieur et Diplome si fournis
     if (poste) {
@@ -557,6 +585,7 @@ router.put('/dossiers/:id', async (req, res) => {
         {
           nom_diplome: diplome.nom_diplome,
           date_obtention: diplome.date_obtention,
+          institution:diplome.institution,
           infop: infoProToUpdate.id_infop,
         },
         { transaction }
@@ -653,7 +682,7 @@ router.put('/dossiers/:id_dossier/etat', async (req, res) => {
     }
 
     // Update the etat_depart field
-    dossier.InfoPro.Detail.etat= etat;
+    dossier.InfoPro.Details.etat= etat;
 
     // Save the updated dossier
     await dossier.save();
@@ -707,8 +736,27 @@ router.get('/notifications',async (req, res) => {
 router.get('/notifications/:matricule',async (req, res) => {
   const { matricule} = req.params;
   try {
+    const dossier = await Dossier.findOne({
+      where: { matricule: matricule },
+      include: [{
+        model: InfoIdent,
+        attributes: ['email'] // Récupérer l'email de l'agent
+      },
+      {
+        model: Utilisateur,
+        attributes: ['id_user'] // Récupérer l'email de l'agent
+      }]
+    }); 
+  
+    if (!dossier) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+  console.log("mon dossier",dossier)
+
+    const user=dossier.Utilisateur.id_user
+          
     const notification = await Notifications.findAll( { order: [['create_dat', 'DESC']],where: { 
-      user_id:matricule }
+      id_user:user }
    } );
 
     res.json(notification);
@@ -718,36 +766,38 @@ router.get('/notifications/:matricule',async (req, res) => {
   }
 });
   // Route to mark a notification as read
+// Import des modèles
 
- /*  const markNotificationAsRead = async (notificationId) => {
-    try {
-      const notification = await Notification.findByPk(notificationId);
-      if (!notification) {
-        throw new Error('Notification not found');
-      }
-      notification.is_read = true;
-      await notification.save();
-      return notification;
-    } catch (error) {
-      throw error;
+// Route pour marquer une notification comme lue
+router.put("/notifications/read/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Recherche de la notification par son ID
+    const notification = await Notifications.findByPk(id);
+    console.log(notification);
+    if (!notification) {
+      return res.status(404).json({ message: "Notification introuvable" });
     }
-  };
 
+    // Mise à jour de l'état de lecture
+    notification.is_read = true;
+    await notification.save();
+    console.log(notification);
 
+    // Retour de la notification mise à jour
+    res.status(200).json({
+      message: "Notification marquée comme lue avec succès",
+      data: notification,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour de la notification",
+      error: error.message,
+    });
+  }
+});
 
-  // Route pour marquer une notification comme lue
-  router.patch('/notifications/:id/read', async (req, res) => {
-    try {
-      const notificationId = parseInt(req.params.id, 10);
-      const updatedNotification = await markNotificationAsRead(notificationId);
-      res.status(200).json(updatedNotification);
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-
-  
   
 
 /* router.put('/dossiers/:id_dossier/etat', async (req, res) => {
@@ -791,68 +841,76 @@ router.get('/notifications/:matricule',async (req, res) => {
 
 
 
-// router.put('/mutations/:matricule', async (req, res) => {
-//   try {
-//     const { matricule } = req.params;
-//     const {
-//       etat_depart,
-//       poste_actuel,
-//       service_actuel,
-//       nouveau_poste,
-//       nouveau_service,
-//       date_prise_fonction,
-//       date_changement,
-//       motif_changement,
-//       type_changement,
-//       besoins_formation
-//     } = req.body;
+ router.post('/mutations/:matricule', async (req, res) => {
+  
+ const {
+      etat,
+      poste_actuel,
+      service_actuel,
+      nouveau_poste,
+      nouveau_service,
+      date_prise_fonction,
+      date_changement,
+      motif_changement,
+      type_changement,
+      besoins_formation
+    } = req.body;
+    const { matricule } = req.params;
+  try {
+   
+    console.log("info",req.body);
 
-//     // Validation des champs requis
-//     const requiredFields = ['poste_actuel', 'service_actuel', 'nouveau_poste', 'nouveau_service', 'date_prise_fonction', 'date_changement'];
+    const dossier = await Dossier.findOne({
+      where: { matricule: matricule },
+      include: [{
+        model: Utilisateur,
+        attributes: ['id_user'] // Récupérer l'email de l'agent
+      }]
+    }); 
+  
+    if (!dossier) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+    console.log("mon dossier",dossier)
 
-//     for (const field of requiredFields) {
-//       if (!req.body[field]) {
-//         return res.status(400).json({ error: `Le champ '${field}' est requis.` });
-//       }
-//     }
+    const infop=dossier.infop;
+    const user=dossier.Utilisateur.id_user
 
-//     // Vérification si une mutation existe déjà pour le matricule donné
-//     let existingMutation = await DetailsMutation.findOne({ where: { matricule } });
+     
+     const  Mutation = await Details.create({
+        matricule:matricule,
+        etat:etat,
+        poste_actuel:poste_actuel,
+        service_actuel:service_actuel,
+        nouveau_poste:nouveau_poste,
+        nouveau_service:nouveau_service,
+        date_prise_fonction:date_prise_fonction,
+        date_changement :date_changement,
+        motif_changement:motif_changement,
+        type_changement:type_changement,
+        besoins_formation:besoins_formation,
+        infop:infop
 
-//     if (existingMutation) {
-//       // Si la mutation existe, mettre à jour avec les nouvelles données
-//       existingMutation = await existingMutation.update({
-//         etat_depart,
-//         poste_actuel,
-//         service_actuel,
-//         nouveau_poste,
-//         nouveau_service,
-//         date_prise_fonction,
-//         date_changement,
-//         motif_changement,
-//         type_changement,
-//         besoins_formation
-//       });
+      });
+     const etatt=etat;
 
-//       const notification = {
-//         message: `L'etat de l'agent  ${matricule} est passé à ${etat_depart}.`,
-//         user_id: existingMutation.matricule,
-//     };
 
-//     // Émettre une notification via Socket.io
-//      getIo().emit('receiveNotification', notification);
+      const notification = {
+        message: `L'agent  ${matricule} est ${etatt}.`,
+        user_id: user,
+    };
 
-//       // Renvoi de la réponse avec les données mises à jour
-//       res.status(200).json(existingMutation);
-//     } else {
-//       // Si la mutation n'existe pas, retourner une erreur ou créer une nouvelle mutation
-//       return res.status(404).json({ error: `Aucune mutation trouvée pour le matricule '${matricule}'.` });
-//     }
-//   } catch (error) {
-//     // Gestion des erreurs
-//     console.error('Erreur lors de la mise à jour de la mutation :', error.message);
-//     res.status(500).json({ error: 'Erreur lors de la mise à jour de la mutation : ' + error.message });
-//   }
-// }); */
+    // Émettre une notification via Socket.io
+     getIo().emit('receiveNotification', notification);
+
+      // Renvoi de la réponse avec les données mises à jour
+      res.status(200).json(Mutation);
+
+  } catch (error) {
+    // Gestion des erreurs
+    console.error('Erreur lors de la mise à jour de la mutation :', error.message);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la mutation : ' + error.message });
+  }
+}); 
 
   module.exports = router;
