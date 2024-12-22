@@ -1,18 +1,17 @@
-require('dotenv').config(); // Charger les variables d'environnement
-
 const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: process.env.DB_DIALECT,
-    logging: false,
-  }
-);
+// Assurez-vous que l'URL de connexion est correctement définie dans .env
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  protocol: 'postgres',
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,  // si Render utilise SSL, sinon retirer ces options
+    }
+  },
+});
 
 module.exports = sequelize;
-
-
