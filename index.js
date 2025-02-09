@@ -8,7 +8,9 @@ const utilisteurRoutes = require('./routes/utilisateurRoutes');
 const dossierRoutes = require('./routes/dossierRoutes');
 const congeRoutes = require('./routes/congeRoutes');
 const uploadRouter = require('./routes/userProfileRoute');
+const presenceRoutes = require("./routes/presenceRoutes");
 const { init: initSocket } = require('./utils/socket');
+const { planifierCronConges } = require('./cronjob/congesCron');
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +37,9 @@ app.use('/api', uploadRouter);
 app.use('/api', utilisteurRoutes);
 app.use('/api', dossierRoutes);
 app.use('/api', congeRoutes);
+app.use('/api', presenceRoutes);
+
+
 
 // Synchronisation avec la base de données et démarrage du serveur
 const port = process.env.PORT || 5000;
@@ -57,3 +62,6 @@ sequelize
   .catch((err) => {
     console.error('Erreur lors de la connexion à la base de données :', err);
   });
+
+  // Exécuter la tâche Cron pour ajouter les jours de congés
+planifierCronConges();

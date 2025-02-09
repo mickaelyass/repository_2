@@ -18,12 +18,23 @@ const DemandeConges = sequelize.define('DemandeConges', {
       key: 'matricule'
     }
   },
+  type_de_conge: {
+    type: DataTypes.STRING
+  },
   date_debut: {
     type: DataTypes.DATE
   },
   annee_jouissance: {
     type: DataTypes.INTEGER
   },
+  nombre_de_jour: {
+    type: DataTypes.INTEGER
+  },
+
+  date_de_fin: {
+    type: DataTypes.DATE
+  },
+
   raison: {
     type: DataTypes.TEXT
   },
