@@ -42,26 +42,25 @@ app.use('/api', presenceRoutes);
 
 
 // Synchronisation avec la base de données et démarrage du serveur
-const port = process.env.PORT || 3003;
+const port = process.env.PORT ;
 const dbName = process.env.DB_NAME;
 console.log('Nom de la base de données:', dbName,port);
 
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log('Connexion à la base de données établie avec succès.');
-    return sequelize.sync({ alter: true }).then(() => {
-      console.log('Base de données synchronisée.');
-    });
-  })
-  .then(() => {
-    server.listen(port, () => {
-      console.log(`Serveur en cours d'exécution sur le port ${port}.`);
-    });
-  })
-  .catch((err) => {
-    console.error('Erreur lors de la connexion à la base de données :', err);
-  });
+server.listen(port, () => {
+  console.log(`Serveur en cours d'exécution sur le port ${port}.`);
 
-  // Exécuter la tâche Cron pour ajouter les jours de congés
-planifierCronConges();
+  // Connexion à la base de données APRÈS le démarrage du serveur
+  sequelize.authenticate()
+    .then(() => {
+      console.log('Connexion à la base de données établie avec succès.');
+      return sequelize.sync({ alter: true });
+    })
+    .then(() => {
+      console.log('Base de données synchronisée.');
+      planifierCronConges();
+    })
+    .catch((err) => {
+      console.error('Erreur de base de données :', err);
+    });
+});
+  
