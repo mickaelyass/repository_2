@@ -42,7 +42,7 @@ app.use('/api', presenceRoutes);
 
 
 // Synchronisation avec la base de données et démarrage du serveur
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3003;
 const dbName = process.env.DB_NAME;
 console.log('Nom de la base de données:', dbName,port);
 
