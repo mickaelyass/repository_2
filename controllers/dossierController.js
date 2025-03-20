@@ -515,7 +515,7 @@ const { InfoIdent,
       await infoIdentToUpdate.update(infoIdent, { transaction });
       console.log("Dossier récupéré :", detailsMutation)
       // Mettre à jour infoPro
-      const detail = detailsMutation && Object.keys(detailsMutation).length > 0
+      const detail = detailsMutation /* && Object.keys(detailsMutation).length > 0
       ? detailsMutation
       : {
           matricule: dossier.matricule,
@@ -529,7 +529,7 @@ const { InfoIdent,
           motif_changement: 'Neant',
           type_changement: 'Neant',
           besoins_formation: 'Neant',
-        };
+        }; */
   
    
       
@@ -541,8 +541,8 @@ const { InfoIdent,
         { transaction }
       );
   
-  
-      await Details.create({
+      if(detail.etat!=null && nouveau_poste!=null){
+        await Details.create({
         matricule: detail.matricule,
         etat: detail.etat,
         poste_actuel: detail.poste_actuel,
@@ -556,9 +556,11 @@ const { InfoIdent,
         besoins_formation: detail.besoins_formation,
         infop: infoProToUpdate.id_infop,
       }, { transaction });
+      }
+         
   
       // Mise à jour de PosteAnterieur et Diplome si fournis
-      if (poste) {
+      if (poste.nom_poste!=null && poste.institution!=null) {
         await PosteAnterieur.create(
           {
             nom_poste: poste.nom_poste,
@@ -571,7 +573,7 @@ const { InfoIdent,
         );
       }
   
-      if (diplome) {
+      if (diplome.nom_diplome!=null && diplome.institution!=null) {
         await Diplome.create(
           {
             nom_diplome: diplome.nom_diplome,
@@ -596,10 +598,10 @@ const { InfoIdent,
       );
   
       // Mise à jour des sanctions et distinctions si fournis
-      if (sanction) {
+      if (sanction.nature_sanction!=null && sanction.sanction_punitive!=null) {
         await Sanction.create(
           {
-            sanction: sanction.saction_punitive,
+            sanction: sanction.sanction_punitive,
             nature_sanction: sanction.nature_sanction,
             infoc: infoComplementaireToUpdate.id_infoc,
           },
@@ -607,7 +609,7 @@ const { InfoIdent,
         );
       }
   
-      if (distinction) {
+      if (distinction.detail_distinction!=null && distinction.ref_distinction!=null) {
         await Distinction.create(
           {
             ref_distinction: distinction.ref_distinction,
