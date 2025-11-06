@@ -9,6 +9,8 @@ const dossierRoutes = require('./routes/dossierRoutes');
 const congeRoutes = require('./routes/congeRoutes');
 const uploadRouter = require('./routes/userProfileRoute');
 const presenceRoutes = require("./routes/presenceRoutes");
+const notificationRoutes = require('./routes/notificationRoute');
+const evaluationRoutes = require('./routes/evaluationRoute');
 const { init: initSocket } = require('./utils/socket');
 const { planifierCronConges } = require('./cronjob/congesCron');
 
@@ -34,10 +36,12 @@ initSocket(server);
 
 // Routes
 app.use('/api', uploadRouter);
-app.use('/api', utilisteurRoutes);
-app.use('/api', dossierRoutes);
+app.use('/api/users', utilisteurRoutes);
+app.use('/api/dossiers', dossierRoutes);
 app.use('/api', congeRoutes);
-app.use('/api', presenceRoutes);
+app.use('/api/presences', presenceRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/evaluations', evaluationRoutes);
 
 
 

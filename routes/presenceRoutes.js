@@ -5,8 +5,8 @@ const { savePresence,getAllPresences,getPresencesByDate }=require ('../controlle
 
 
 
-router.get("/presences", getAllPresences);
-router.get("/presences/:date",getPresencesByDate);
-router.post("/presences", savePresence);
+router.get("/", getAllPresences);
+router.get("/:date",getPresencesByDate);
+router.post("/", savePresence);
 
 module.exports = router;
