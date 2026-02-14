@@ -1,6 +1,8 @@
 require('dotenv').config(); // Charger le fichier .env
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+
 const http = require('http');
 const path = require('path');
 const sequelize = require('./db');
@@ -15,6 +17,21 @@ const { init: initSocket } = require('./utils/socket');
 const { planifierCronConges } = require('./cronjob/congesCron');
 
 const app = express();
+// ... après const app = express();
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        "default-src": ["'self'"],
+        "connect-src": ["'self'", "http://localhost:3004", "ws://localhost:3004"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
+
+// ... reste de tes middlewares (express.json, cors, etc.)
 const server = http.createServer(app);
 
 // Middleware
