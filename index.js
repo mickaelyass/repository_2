@@ -23,7 +23,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         "default-src": ["'self'"],
-        "connect-src": ["'self'", "http://localhost:3004", "ws://localhost:3004"],
+        "connect-src": ["'self'", "http://localhost:3004","https://app-backend-011q.onrender.com/" ,"ws://localhost:3004"],
         "img-src": ["'self'", "data:", "blob:"],
         "style-src": ["'self'", "'unsafe-inline'"],
       },
